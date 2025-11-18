@@ -1,62 +1,85 @@
 export const bullets = [];
 
+const BASE_BULLET_SPEED = 1.4;
+const BULLET_LIFE = 200;
+
 export function shootBullet(ship){
+  const angle = ship.angle;
+
+  // Total ship speed magnitude
+  const shipSpeed = Math.sqrt(ship.vx * ship.vx + ship.vy * ship.vy);
+
+  // Bullet travels forward + inherits speed magnitude (not components)
+  const bulletSpeed = BASE_BULLET_SPEED + shipSpeed;
+
+  const spawnOffset = 15;
+  const bx = ship.x + Math.cos(angle) * spawnOffset;
+  const by = ship.y + Math.sin(angle) * spawnOffset;
+
   bullets.push({
-    x: ship.x,
-    y: ship.y,
-    vx: ship.vx + Math.cos(ship.angle)*1.0,
-    vy: ship.vy + Math.sin(ship.angle)*1.0,
-    life: 200,
+    x: bx,
+    y: by,
+    vx: Math.cos(angle) * bulletSpeed,
+    vy: Math.sin(angle) * bulletSpeed,
+    life: BULLET_LIFE,
     trail: []
   });
 }
 
 export function updateBullets(dt){
-  bullets.forEach((b,i)=>{
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
     b.x += b.vx * dt;
     b.y += b.vy * dt;
 
-    b.trail.push({x:b.x,y:b.y});
-    if(b.trail.length>5) b.trail.shift();
+    b.trail.push({x: b.x, y: b.y});
+    if (b.trail.length > 6) b.trail.shift();
 
-    // Wraparound
-    if(b.x > 800) b.x = 0;
-    if(b.x < 0) b.x = 800;
-    if(b.y > 600) b.y = 0;
-    if(b.y < 0) b.y = 600;
+    // wrap
+    if (b.x > 800) b.x = 0;
+    if (b.x < 0) b.x = 800;
+    if (b.y > 600) b.y = 0;
+    if (b.y < 0) b.y = 600;
 
     b.life -= dt;
-    if(b.life <= 0) bullets.splice(i,1);
-  });
+    if (b.life <= 0) bullets.splice(i, 1);
+  }
 }
 
 export function drawBullets(ctx){
-  ctx.strokeStyle='white';
-  ctx.lineWidth=1;
-  bullets.forEach(b=>{
-    // draw trail
-    ctx.beginPath();
-    b.trail.forEach((p,i)=>{
-      if(i===0) ctx.moveTo(p.x,p.y);
-      else ctx.lineTo(p.x,p.y);
-    });
-    ctx.stroke();
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 1;
 
-    // draw main bullet
-    ctx.fillRect(b.x-1,b.y-1,2,2);
+  bullets.forEach(b => {
+    // trail
+    if (b.trail.length > 0) {
+      ctx.beginPath();
+      b.trail.forEach((p, idx) => {
+        if (idx === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.stroke();
+    }
 
-    // ghost wrap copies for edge
-    const offsets = [-800,0,800];
-    offsets.forEach(ox=>{
-      offsets.forEach(oy=>{
-        if(ox!==0 || oy!==0){
-          ctx.fillRect(b.x-1+ox,b.y-1+oy,2,2);
-          ctx.beginPath();
-          b.trail.forEach((p,i)=>{
-            if(i===0) ctx.moveTo(p.x+ox,p.y+oy);
-            else ctx.lineTo(p.x+ox,p.y+oy);
-          });
-          ctx.stroke();
+    // dot
+    ctx.fillRect(b.x - 1, b.y - 1, 2, 2);
+
+    // wrap ghosts
+    const offsets = [-800, 0, 800];
+    offsets.forEach(ox => {
+      offsets.forEach(oy => {
+        if (ox !== 0 || oy !== 0) {
+          // trail ghost
+          if (b.trail.length > 0) {
+            ctx.beginPath();
+            b.trail.forEach((p, idx) => {
+              if (idx === 0) ctx.moveTo(p.x + ox, p.y + oy);
+              else ctx.lineTo(p.x + ox, p.y + oy);
+            });
+            ctx.stroke();
+          }
+          // dot ghost
+          ctx.fillRect(b.x - 1 + ox, b.y - 1 + oy, 2, 2);
         }
       });
     });
