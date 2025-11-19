@@ -3,9 +3,14 @@ export const ship = {
   angle: -Math.PI/2,
   vx: 0, vy: 0,
   fuel: 100,
+  maxFuel: 100,
   alive: true,
   thrusting: false
 };
+
+export function refuelShip(amount) {
+  ship.fuel = Math.min(ship.maxFuel, ship.fuel + amount);
+}
 
 export function updateShip(dt, keys) {
   if (!ship.alive) return;
@@ -21,7 +26,7 @@ export function updateShip(dt, keys) {
     const thrust = 0.05 * dt;
     ship.vx += Math.cos(ship.angle) * thrust;
     ship.vy += Math.sin(ship.angle) * thrust;
-    ship.fuel -= thrust * 5;
+    ship.fuel -= thrust * 2;
     ship.thrusting = true;
   }
 
