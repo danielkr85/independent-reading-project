@@ -11,3 +11,18 @@ canvas {
   margin: 0 auto;
   background: black;
 }
+
+/* Mission Log styles */
+.mission-log {
+  position: fixed;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  font-weight: bold;
+  color: #ffff64;
+  text-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+  z-index: 100;
+  pointer-events: none;
+  white-space: nowrap;
+}
