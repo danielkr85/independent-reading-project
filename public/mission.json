@@ -6,6 +6,16 @@
       "triggers": "gameStart"
     },
     {
+      "id": "mission2_start",
+      "message": "Mission 2: Receive alien canisters - dodge asteroids",
+      "triggers": "mission2Start"
+    },
+    {
+      "id": "mission2_complete",
+      "message": "MISSION 2 COMPLETE!",
+      "triggers": "mission2Complete"
+    },
+    {
       "id": "wave1",
       "message": "Wave 1 Start",
       "triggers": "asteroidSpawn"

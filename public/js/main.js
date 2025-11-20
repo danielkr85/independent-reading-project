@@ -7,6 +7,7 @@ import { MissionLog } from './missionlog.js';
 import { FuelGauge } from './fuel.js';
 import { shipDebris, createShipDebris, updateShipDebris, drawShipDebris } from './shipdebris.js';
 import { astrophageClouds, spawnAstrophageClouds, updateAstrophageClouds, drawAstrophageClouds, checkCloudCollision, getCollectedCount, getTotalCloudCount } from './astrophage.js';
+import { canisters, spawnCanisters, updateCanisters, drawCanisters, checkCanisterCollision, getCollectedCanisterCount, getTotalCanisterCount, setMissionNumber } from './canister.js';
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -25,6 +26,12 @@ let gameTime=0;
 let asteroidsDestroyed = 0;
 let previousAsteroidCount = 0;
 let shipExploded = false;
+
+// Mission system
+let currentMission = 1;
+let missionComplete = false;
+let transitionAlpha = 0;
+let isTransitioning = false;
 
 // Initialize Fuel Gauge
 const fuelGauge = new FuelGauge(ship.maxFuel);
@@ -52,6 +59,7 @@ function loop(timestamp){
     updateBullets(dt);
     updateAsteroids(dt);
     updateAstrophageClouds();
+    updateCanisters();
   }
   
   // These always update, even during pause
@@ -97,7 +105,7 @@ function loop(timestamp){
   });
 
   // Check cloud collection
-  if(ship.alive) {
+  if(ship.alive && currentMission === 1) {
     const collectedCloud = checkCloudCollision(ship.x, ship.y);
     if(collectedCloud) {
       console.log('Cloud collected! Adding fuel...');
@@ -110,8 +118,69 @@ function loop(timestamp){
       
       // Check if mission complete
       if(collected === missionTargets) {
-        console.log('MISSION COMPLETE!');
-        missionLog.queueMessage('mission_complete', `MISSION COMPLETE! All ${missionTargets} samples collected!`, 300);
+        console.log('MISSION 1 COMPLETE!');
+        missionComplete = true;
+        missionLog.queueMessage('mission_complete', `MISSION 1 COMPLETE! Preparing Mission 2...`, 300);
+      }
+    }
+  }
+
+  // Start mission 2 when mission 1 is complete and pause is over
+  if(missionComplete && !missionLog.isDisplayingMessage()) {
+    isTransitioning = true;
+    transitionAlpha = 0;
+  }
+  
+  // Handle fade transition
+  if(isTransitioning) {
+    transitionAlpha += 0.03;
+    
+    if(transitionAlpha >= 1.0) {
+      // Transition complete - set up mission 2
+      currentMission = 2;
+      setMissionNumber(2);
+      missionComplete = false;
+      
+      // Reset ship position for new mission
+      ship.x = 400;
+      ship.y = 480;
+      ship.vx = 0;
+      ship.vy = 0;
+      ship.angle = -Math.PI / 2;
+      
+      // Clear astrophage clouds from mission 1
+      astrophageClouds.length = 0;
+      
+      // Clear bullets and particles for clean start
+      bullets.length = 0;
+      particles.length = 0;
+      
+      missionLog.queueMessage('mission2_start', `Mission 2: Receive alien canisters - dodge asteroids`, 240);
+      spawnCanisters(2);
+      spawnAsteroids(8);
+      
+      // Start fade back in
+      transitionAlpha = 1.0;
+      isTransitioning = false;
+    }
+  }
+
+  // Check canister collection (Mission 2)
+  if(ship.alive && currentMission === 2) {
+    const collectedCanister = checkCanisterCollision(ship.x, ship.y);
+    if(collectedCanister) {
+      console.log('Canister collected!');
+      refuelShip(25);
+      
+      const collected = getCollectedCanisterCount();
+      const total = getTotalCanisterCount();
+      missionLog.queueBottomMessage(`Canister received! (${collected}/${total})`);
+      
+      // Check if mission 2 complete
+      if(collected === total) {
+        console.log('MISSION 2 COMPLETE!');
+        missionComplete = true;
+        missionLog.queueMessage('mission2_complete', `MISSION 2 COMPLETE! All canisters received!`, 300);
       }
     }
   }
@@ -152,6 +221,7 @@ function loop(timestamp){
   // Draw all game elements
   drawAsteroids(ctx);
   drawAstrophageClouds(ctx);
+  drawCanisters(ctx);
   if(ship.alive) drawShip(ctx);
   drawBullets(ctx);
   drawParticles(ctx);
@@ -173,10 +243,15 @@ function loop(timestamp){
   // HUD
   ctx.fillStyle='white';
   ctx.font='16px monospace';
-  ctx.fillText(`Time: ${Math.floor(gameTime)}`,10,40);
 
   // Draw fuel gauge
   fuelGauge.draw(ctx, ship.fuel, canvas.width, canvas.height);
+
+  // Draw transition fade
+  if(transitionAlpha > 0 && transitionAlpha < 1) {
+    ctx.fillStyle = `rgba(0, 0, 0, ${transitionAlpha})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
   requestAnimationFrame(loop);
 }
