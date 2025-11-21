@@ -5,34 +5,44 @@ export const canisters = [];
 let canisteIdCounter = 0;
 let nextCanisterSpawnTime = 0;
 let currentMissionNumber = 1;
+let maxCanisters = 3; // maximum number of canisters allowed to spawn in mission 2
 
 export function createCanister(x, y) {
   canisters.push({
     id: canisteIdCounter++,
     x: x,
     y: y,
-    vx: (Math.random() - 0.5) * 0.12,
-    vy: 0.25,
-    radius: 12,
+    vx: (Math.random() - 0.5) * 0.2, // more horizontal drift
+    vy: 0.35, // faster fall
+    radius: 10, // slightly smaller -> harder to hit
     collected: false,
     rotation: 0,
-    rotationSpeed: Math.random() * 0.03 + 0.02,
+    rotationSpeed: Math.random() * 0.06 + 0.03, // faster rotation
     age: 0,
     spinAxisAngle: Math.random() * Math.PI * 2 // Which axis it's spinning on
   });
-  nextCanisterSpawnTime = Date.now() + 15000; // Next canister in 15 seconds
+  nextCanisterSpawnTime = Date.now() + 12000; // Next canister in 12 seconds
   return canisters[canisters.length - 1];
 }
 
 export function spawnCanisters(count = 3) {
-  // Remove old canisters
+  // Remove old canisters and set max
   canisters.length = 0;
   canisteIdCounter = 0;
   nextCanisterSpawnTime = 0;
+  maxCanisters = Math.max(1, Math.floor(count));
   
-  // Spawn first canister immediately
-  if (count > 0) {
-    createCanister(400, -30);
+  // Spawn the first canister immediately (if any), then schedule the rest at random intervals
+  if (maxCanisters > 0) {
+    const x = 100 + Math.random() * 600;
+    createCanister(x, -30 - Math.random() * 60);
+  }
+
+  // Schedule the next spawn time randomly between 2 and 8 seconds
+  if (maxCanisters > 1) {
+    nextCanisterSpawnTime = Date.now() + (2000 + Math.floor(Math.random() * 6000));
+  } else {
+    nextCanisterSpawnTime = 0;
   }
 }
 
@@ -40,33 +50,46 @@ export function setMissionNumber(mission) {
   currentMissionNumber = mission;
 }
 
-export function updateCanisters() {
+export function updateCanisters(timeScale = 1) {
   canisters.forEach((canister, i) => {
     // Drift movement (comes down from top)
-    canister.x += canister.vx;
-    canister.y += canister.vy;
+    canister.x += canister.vx * timeScale;
+    canister.y += canister.vy * timeScale;
     
-    // Rotation (much slower now)
-    canister.rotation += canister.rotationSpeed;
-    canister.age++;
+    // Rotation
+    canister.rotation += canister.rotationSpeed * timeScale;
+    canister.age += timeScale;
     
-    // Wraparound
-    if (canister.x > 800) canister.x = 0;
-    if (canister.x < 0) canister.x = 800;
-    if (canister.y > 600) canister.y = 0;
+    // Wraparound horizontally only (vertical reset when off bottom)
+    if (canister.x > 820) canister.x = -20;
+    if (canister.x < -20) canister.x = 820;
+    if (canister.y > 620) canister.y = -40; // loop back to top if somehow missed
   });
   
-  // Only auto-spawn canisters during Mission 2
+  // Only auto-spawn canisters during Mission 2, up to maxCanisters
   if (currentMissionNumber === 2) {
     const uncollectedCount = canisters.filter(c => !c.collected).length;
     const totalSpawned = canisters.length;
-    
-    if (totalSpawned < 3 && uncollectedCount === 0) {
-      // All existing canisters collected, spawn next one
-      createCanister(400, -30);
-    } else if (totalSpawned < 3 && Date.now() > nextCanisterSpawnTime) {
-      // 15 seconds passed, spawn next one anyway
-      createCanister(400, -30);
+
+    if (totalSpawned < maxCanisters) {
+      // If there are no uncollected canisters, spawn the next one immediately
+      if (uncollectedCount === 0) {
+        createCanister(100 + Math.random() * 600, -30 - Math.random() * 60);
+        // schedule next if needed
+        if (canisters.length < maxCanisters) {
+          nextCanisterSpawnTime = Date.now() + (2000 + Math.floor(Math.random() * 6000));
+        } else {
+          nextCanisterSpawnTime = 0;
+        }
+      } else if (nextCanisterSpawnTime && Date.now() > nextCanisterSpawnTime) {
+        createCanister(100 + Math.random() * 600, -30 - Math.random() * 60);
+        // schedule another if still under limit
+        if (canisters.length < maxCanisters) {
+          nextCanisterSpawnTime = Date.now() + (2000 + Math.floor(Math.random() * 6000));
+        } else {
+          nextCanisterSpawnTime = 0;
+        }
+      }
     }
   }
 }
@@ -140,8 +163,8 @@ export function checkCanisterCollision(shipX, shipY) {
       const dx = shipX - canister.x;
       const dy = shipY - canister.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      if (distance < canister.radius + 20) {
+      // reduce the extra collision padding so canisters are actually harder to pick up
+      if (distance < canister.radius + 12) {
         canister.collected = true;
         collected = canister;
       }

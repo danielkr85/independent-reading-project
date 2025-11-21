@@ -32,12 +32,12 @@ export function spawnAstrophageClouds(count = 3) {
   }
 }
 
-export function updateAstrophageClouds() {
+export function updateAstrophageClouds(timeScale = 1) {
   astrophageClouds.forEach((cloud, i) => {
     // Slow drift movement
-    cloud.x += cloud.vx;
-    cloud.y += cloud.vy;
-    cloud.particleAge += 0.5;
+    cloud.x += cloud.vx * timeScale;
+    cloud.y += cloud.vy * timeScale;
+    cloud.particleAge += 0.5 * timeScale;
     
     // Wraparound
     if (cloud.x > 800) cloud.x = 0;

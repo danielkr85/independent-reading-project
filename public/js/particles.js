@@ -13,11 +13,11 @@ export function createParticles(x,y,count=10){
   }
 }
 
-export function updateParticles(){
+export function updateParticles(timeScale = 1){
   particles.forEach((p,i)=>{
-    p.x += p.vx;
-    p.y += p.vy;
-    p.life--;
+    p.x += p.vx * timeScale;
+    p.y += p.vy * timeScale;
+    p.life -= timeScale;
     p.alpha = Math.max(0, p.life/30);
 
     // Wraparound
