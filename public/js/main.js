@@ -12,7 +12,285 @@ import { canisters, spawnCanisters, updateCanisters, drawCanisters, checkCaniste
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Initialize Mission Log
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+window.audioContext = audioContext;
+
+const bgAudio = new Audio('./soundtrack.mp3');
+bgAudio.loop = true;
+bgAudio.volume = 0.0275;
+let audioStarted = false;
+
+function startAudio() {
+  if (!audioStarted) {
+    audioContext.resume();
+    bgAudio.play().catch(e => console.error('Music playback failed:', e));
+    audioStarted = true;
+  }
+}
+
+document.addEventListener('keydown', startAudio, { once: true });
+document.addEventListener('click', startAudio, { once: true });
+
+window.shootSound = () => {
+  if (!audioStarted) return;
+  const now = audioContext.currentTime;
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.frequency.setValueAtTime(280, now);
+  osc.frequency.exponentialRampToValueAtTime(60, now + 0.05);
+  gain.gain.setValueAtTime(0.4, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+  osc.start(now);
+  osc.stop(now + 0.05);
+};
+
+window.collisionSound = () => {
+  if (!audioStarted) return;
+  const now = audioContext.currentTime;
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(150, now);
+  osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+  gain.gain.setValueAtTime(0.45, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+  osc.start(now);
+  osc.stop(now + 0.1);
+};
+
+window.respawnSound = () => {
+  if (!audioStarted) return;
+  const now = audioContext.currentTime;
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.frequency.setValueAtTime(100, now);
+  osc.frequency.exponentialRampToValueAtTime(400, now + 0.4);
+  gain.gain.setValueAtTime(0.35, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+  osc.start(now);
+  osc.stop(now + 0.4);
+};
+
+window.bulletHitSound = () => {
+  if (!audioStarted) return;
+  const now = audioContext.currentTime;
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(320, now);
+  osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
+  gain.gain.setValueAtTime(0.32, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+  osc.start(now);
+  osc.stop(now + 0.08);
+};
+
+window.collectSound = () => {
+  if (!audioStarted) return;
+  const now = audioContext.currentTime;
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.frequency.setValueAtTime(220, now);
+  osc.frequency.setValueAtTime(330, now + 0.05);
+  osc.frequency.setValueAtTime(440, now + 0.1);
+  gain.gain.setValueAtTime(0.35, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+  osc.start(now);
+  osc.stop(now + 0.15);
+};
+
+window.thrustSound = (() => {
+  let lastThrustTime = 0;
+  return () => {
+    if (!audioStarted) return;
+    const now = audioContext.currentTime;
+    if (now - lastThrustTime < 0.08) return;
+    lastThrustTime = now;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(110, now);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+    osc.start(now);
+    osc.stop(now + 0.08);
+  };
+})();
+
+window.missionCompleteSound = () => {
+  if (!audioStarted) return;
+  const now = audioContext.currentTime;
+  const notes = [
+    { freq: 330, time: 0.2 },
+    { freq: 440, time: 0.2 },
+    { freq: 550, time: 0.4 }
+  ];
+  
+  let currentTime = now;
+  notes.forEach(note => {
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(note.freq, currentTime);
+    gain.gain.setValueAtTime(0.32, currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, currentTime + note.time);
+    osc.start(currentTime);
+    osc.stop(currentTime + note.time);
+    currentTime += note.time;
+  });
+};
+
+window.asteroidPopSound = () => {
+  if (!audioStarted) return;
+  const now = audioContext.currentTime;
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(200, now);
+  osc.frequency.exponentialRampToValueAtTime(50, now + 0.06);
+  gain.gain.setValueAtTime(0.28, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+  osc.start(now);
+  osc.stop(now + 0.06);
+};
+
+window.lowFuelSound = (() => {
+  let lastBeepTime = 0;
+  return () => {
+    if (!audioStarted) return;
+    const now = audioContext.currentTime;
+    if (now - lastBeepTime < 0.3) return;
+    lastBeepTime = now;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(880, now);
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  };
+})();
+
+window.waveClearSound = () => {
+  if (!audioStarted) return;
+  const now = audioContext.currentTime;
+  const notes = [262, 330, 392, 523];
+  
+  notes.forEach((freq, i) => {
+    const startTime = now + (i * 0.08);
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(freq, startTime);
+    gain.gain.setValueAtTime(0.2, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15);
+    osc.start(startTime);
+    osc.stop(startTime + 0.15);
+  });
+};
+
+window.asteroidSpawnSound = () => {
+  if (!audioStarted) return;
+  const now = audioContext.currentTime;
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(600, now);
+  osc.frequency.exponentialRampToValueAtTime(200, now + 0.2);
+  gain.gain.setValueAtTime(0.15, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+  osc.start(now);
+  osc.stop(now + 0.2);
+};
+
+window.gameStartSound = () => {
+  if (!audioStarted) return;
+  const now = audioContext.currentTime;
+  const freqs = [220, 330, 440];
+  
+  freqs.forEach(freq => {
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(freq, now);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+    osc.start(now);
+    osc.stop(now + 0.3);
+  });
+};
+
+window.noBulletsSound = () => {
+  if (!audioStarted) return;
+  const now = audioContext.currentTime;
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.frequency.setValueAtTime(100, now);
+  gain.gain.setValueAtTime(0.15, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+  osc.start(now);
+  osc.stop(now + 0.05);
+};
+
+window.radarPingSound = (() => {
+  let lastPingTime = 0;
+  return () => {
+    if (!audioStarted) return;
+    const now = audioContext.currentTime;
+    if (now - lastPingTime < 0.5) return;
+    lastPingTime = now;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+    osc.start(now);
+    osc.stop(now + 0.15);
+  };
+})();
+
+window.shieldSound = () => {
+  if (!audioStarted) return;
+  const now = audioContext.currentTime;
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(600, now);
+  osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+  gain.gain.setValueAtTime(0.2, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+  osc.start(now);
+  osc.stop(now + 0.1);
+};
+
 const missionLog = new MissionLog();
 await missionLog.loadEvents();
 
@@ -30,40 +308,31 @@ let shipInvulnerable = false;
 let shipExplodedAt = 0;
 let shipInvulnerableUntil = 0;
 let shipRespawnAt = 0;
-const RESPAWN_DELAY = 1500; // ms until respawn after crash
-const RESPAWN_INVULN = 2000; // ms of invulnerability after respawn
+const RESPAWN_DELAY = 1500;
+const RESPAWN_INVULN = 2000;
 let shipAssembling = false;
 
-// Mission system
 let currentMission = 1;
 let missionComplete = false;
 let transitionAlpha = 0;
 let isTransitioning = false;
-// New timing + timeScale for slow-down fade
-let missionCompleteAt = 0; // timestamp when completion sequence started
-const MISSION_COMPLETE_WAIT = 2000; // ms to wait before slowing
-const MISSION_SLOW_DURATION = 2000; // ms duration to slow down and fade
-const MISSION_FADE_IN_DURATION = 800; // ms duration to fade back in to new mission
+let missionCompleteAt = 0;
+const MISSION_COMPLETE_WAIT = 2000;
+const MISSION_SLOW_DURATION = 2000;
+const MISSION_FADE_IN_DURATION = 800;
 let isFadingIn = false;
 let fadeInStart = 0;
-let timeScale = 1.0; // global movement multiplier (1 = normal, 0 = paused)
+let timeScale = 1.0;
+let gameFinished = false;
 
-// Initialize Fuel Gauge
+let mission2Requirement = 3;
 const fuelGauge = new FuelGauge(ship.maxFuel);
-
-// Project Hail Mary Mission Setup
 const missionTargets = 3;
 spawnAstrophageClouds(missionTargets);
 spawnAsteroids(5);
+if (window.gameStartSound) window.gameStartSound();
 missionLog.triggerEvent('gameStart', { gameTime: 0 });
-
-// Ensure starting fuel is full
 ship.fuel = ship.maxFuel;
-
-// mission requirements
-let mission2Requirement = 3;
-
-// Initialize faint stars
 const stars = [];
 for(let i=0;i<50;i++){
   stars.push({ x: Math.random()*800, y: Math.random()*600, speed: Math.random()*0.3+0.1 });
@@ -74,8 +343,7 @@ function loop(timestamp){
   lastTime = timestamp;
   gameTime += dt;
 
-  // Only update game if mission text is not displaying
-  // Allow updates while mission message is showing if missionComplete so game doesn't fully pause
+  
   if(!missionLog.isDisplayingMessage() || missionComplete) {
     if(!shipAssembling) updateShip(dt * timeScale,keys);
     updateBullets(dt * timeScale);
@@ -84,18 +352,17 @@ function loop(timestamp){
     updateCanisters(timeScale);
   }
   
-  // These always update, even during pause
   updateParticles(timeScale);
   updateShipDebris(timeScale);
   missionLog.update();
   missionLog.updateBottomMessages();
 
-  // Collision detection + splitting
   asteroids.forEach((a,ai)=>{
     bullets.forEach((b,bi)=>{
       if(polysCollide(worldVerts(a),[{x:b.x,y:b.y}])){
         createParticles(b.x,b.y,10);
         asteroidsDestroyed++;
+        if (window.bulletHitSound) window.bulletHitSound();
         if(a.size>15){
           const numFragments = 2 + Math.floor(Math.random()*2);
           for(let i=0;i<numFragments;i++){
@@ -118,45 +385,48 @@ function loop(timestamp){
       {x:ship.x+Math.cos(ship.angle+2.5)*-10, y:ship.y+Math.sin(ship.angle+2.5)*-10},
       {x:ship.x+Math.cos(ship.angle-2.5)*-10, y:ship.y+Math.sin(ship.angle-2.5)*-10}
     ];
-    // Quick distance check to avoid unnecessary polygon SAT and reduce false positives
     const dx = a.x - ship.x;
     const dy = a.y - ship.y;
     const approxDist2 = dx*dx + dy*dy;
-    const approxRadius = (a.size || 30) + 16; // asteroid size + ship approx radius
+    const approxRadius = (a.size || 30) + 16;
     if(approxDist2 < approxRadius*approxRadius) {
       if(polysCollide(worldVerts(a), shipVerts) && !shipExploded && !shipInvulnerable) {
         createShipDebris(ship.x, ship.y, ship.angle);
-        createParticles(ship.x, ship.y, 50);
+        createParticles(ship.x, ship.y,50);
         ship.alive=false;
         shipExploded = true;
         shipExplodedAt = timestamp;
+        if (window.collisionSound) window.collisionSound();
+        if (window.shieldSound) window.shieldSound();
       }
     }
     
   });
 
-  // Check cloud collection
   if(ship.alive && currentMission === 1) {
     const collectedCloud = checkCloudCollision(ship.x, ship.y);
     if(collectedCloud) {
       console.log('Cloud collected! Adding fuel...');
       refuelShip(30);
       console.log('Current fuel:', ship.fuel);
+      if (window.collectSound) window.collectSound();
       
       const collected = getCollectedCount();
       const total = getTotalCloudCount();
       missionLog.queueBottomMessage(`Sample collected! (${collected}/${total})`);
       
-      // Check if mission complete
+      
       if(collected === missionTargets) {
         console.log('MISSION 1 COMPLETE!');
         missionComplete = true;
+        if (window.missionCompleteSound) window.missionCompleteSound();
         missionLog.queueMessage('mission_complete', `MISSION 1 COMPLETE! Preparing Mission 2...`, 300);
-        // mark mission completion timestamp (will be set when pause clears below)
         missionCompleteAt = 0;
-        // make ship invulnerable immediately so game doesn't punish player during message/transition
         shipInvulnerable = true;
-        // ensure ship is alive and clear any debris so player doesn't die during transition
+        ship.alive = true;
+        shipExploded = false;
+        shipDebris.length = 0;
+        particles.length = 0;
         ship.alive = true;
         shipExploded = false;
         shipDebris.length = 0;
@@ -165,34 +435,37 @@ function loop(timestamp){
     }
   }
 
-  // Mission completion sequence: wait, then slow & fade, then reset
+  
   if(missionComplete && !missionLog.isDisplayingMessage()) {
     if(!missionCompleteAt) missionCompleteAt = timestamp;
   } else {
-    // Clear any pending completion timestamp if mission not complete
+    
     if(!missionComplete) missionCompleteAt = 0;
   }
 
   if(missionCompleteAt) {
     const elapsed = timestamp - missionCompleteAt;
 
+    if (gameFinished) {
+      missionCompleteAt = 0;
+      missionComplete = false;
+    }
+
     if(elapsed < MISSION_COMPLETE_WAIT) {
-      // still waiting - do nothing special
+      
     } else if(elapsed < MISSION_COMPLETE_WAIT + MISSION_SLOW_DURATION) {
-      // slow down and fade over MISSION_SLOW_DURATION
-      const t = (elapsed - MISSION_COMPLETE_WAIT) / MISSION_SLOW_DURATION; // 0..1
-      // ease linear
+      const t = (elapsed - MISSION_COMPLETE_WAIT) / MISSION_SLOW_DURATION;
       timeScale = Math.max(0, 1 - t);
       transitionAlpha = Math.min(1, t);
     } else {
-      // sequence complete - perform reset and start next mission (screen currently black)
+      
         const nextMission = currentMission + 1;
         currentMission = nextMission;
         setMissionNumber(nextMission);
         missionComplete = false;
         missionCompleteAt = 0;
 
-        // Reset ship position for new mission
+        
         ship.x = 400;
         ship.y = 480;
         ship.vx = 0;
@@ -201,63 +474,59 @@ function loop(timestamp){
       ship.alive = true;
       shipExploded = false;
 
-        // Clear world state for clean start
+        
         astrophageClouds.length = 0;
         canisters.length = 0;
         bullets.length = 0;
         particles.length = 0;
         shipDebris.length = 0;
 
-        // Setup next mission specifics
+        
         if (nextMission === 2) {
           missionLog.queueMessage('mission2_start', `Mission 2: Receive alien canisters - dodge asteroids`, 240);
           spawnCanisters(mission2Requirement);
           spawnAsteroids(8);
         } else if (nextMission === 3) {
-          missionLog.queueMessage('mission3_start', `Mission 3: Free play`, 240);
-          // Base game: no astrophage, no canisters. Keep some asteroids for gameplay.
-          spawnAsteroids(5);
+          currentMission = 3;
+          gameFinished = true;
+          missionLog.queueMessage('thanks', `Thanks for playing, that's all.`, 600);
+          missionLog.queueMessage('based', `Based on Project Hail Mary`, 600);
+          missionLog.queueMessage('book', `Book by Andy Weir`, 600);
+          missionLog.queueMessage('made', `Made by Sebastien`, 600);
+          missionLog.queueMessage('eeee', `EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE`, 1200);
         } else {
-          // Default fallback
           spawnAsteroids(5);
         }
 
-        // Reset fuel reserves at the start of each mission
+        
         ship.fuel = ship.maxFuel;
 
-        // restore defaults and start a short fade-in so mission doesn't cut instantly
         timeScale = 1.0;
-        transitionAlpha = 1.0; // start fully black and fade in
+        transitionAlpha = 1.0;
         isFadingIn = true;
         fadeInStart = timestamp;
-        // clear invulnerability now that next mission will begin
         shipInvulnerable = false;
     }
   }
 
-  // Handle fade-in after reset
-  if(isFadingIn) {
+  if(isFadingIn){
     const fadeElapsed = timestamp - fadeInStart;
-    if(fadeElapsed >= MISSION_FADE_IN_DURATION) {
+    if(fadeElapsed >= MISSION_FADE_IN_DURATION){
       transitionAlpha = 0;
       isFadingIn = false;
-      // fade-in finished: clear invulnerability so player can be damaged again
       shipInvulnerable = false;
-    } else {
+    }else{
       transitionAlpha = Math.max(0, 1 - (fadeElapsed / MISSION_FADE_IN_DURATION));
     }
   }
 
-  // Clear temporary invulnerability after respawn if time expired
-  if (shipInvulnerableUntil && timestamp >= shipInvulnerableUntil) {
+  if (shipInvulnerableUntil && timestamp >= shipInvulnerableUntil){
     shipInvulnerable = false;
     shipInvulnerableUntil = 0;
   }
 
-  // Handle respawn after crash
-  if (shipExploded && shipExplodedAt) {
-    if (timestamp - shipExplodedAt >= RESPAWN_DELAY) {
-      // Instant respawn with glow/fade-in effect
+  if (shipExploded && shipExplodedAt){
+    if (timestamp - shipExplodedAt >= RESPAWN_DELAY){
       shipDebris.length = 0;
       particles.length = 0;
       ship.alive = true;
@@ -267,34 +536,31 @@ function loop(timestamp){
       ship.vx = 0;
       ship.vy = 0;
       ship.angle = -Math.PI/2;
-      // Invulnerability with visual fade-in
       shipInvulnerable = true;
       shipInvulnerableUntil = timestamp + RESPAWN_INVULN;
       shipAssembling = false;
       shipExplodedAt = 0;
-      // Track respawn time for glow/fade effect
       shipRespawnAt = timestamp;
+      if (window.respawnSound) window.respawnSound();
     }
   }
 
-  // Check canister collection (Mission 2)
-  if(ship.alive && currentMission === 2) {
+  if(ship.alive && currentMission === 2){
     const collectedCanister = checkCanisterCollision(ship.x, ship.y);
     if(collectedCanister) {
       console.log('Canister collected!');
       refuelShip(25);
+      if (window.collectSound) window.collectSound();
       
       const collected = getCollectedCanisterCount();
       missionLog.queueBottomMessage(`Canister received! (${collected}/${mission2Requirement})`);
       
-      // Check if mission 2 complete (requirement based)
-      if(collected >= mission2Requirement) {
+      if(collected >= mission2Requirement){
         console.log('MISSION 2 COMPLETE!');
         missionComplete = true;
+        if (window.missionCompleteSound) window.missionCompleteSound();
         missionLog.queueMessage('mission2_complete', `MISSION 2 COMPLETE! All canisters received!`, 300);
-        // Make ship invulnerable during the completion sequence to avoid dying while transitioning
         shipInvulnerable = true;
-        // ensure ship is alive and clear debris
         ship.alive = true;
         shipExploded = false;
         shipDebris.length = 0;
@@ -303,33 +569,29 @@ function loop(timestamp){
     }
   }
 
-  // Check for wave clears and asteroid spawns
-  if(asteroids.length===0 && previousAsteroidCount > 0) {
+  if(asteroids.length===0 && previousAsteroidCount > 0){
+    if (window.waveClearSound) window.waveClearSound();
     missionLog.triggerEvent('waveClear', { asteroidCount: asteroids.length });
     spawnAsteroids(5+Math.floor(Math.random()*5));
+    if (window.asteroidSpawnSound) window.asteroidSpawnSound();
     missionLog.triggerEvent('asteroidSpawn', { asteroidCount: asteroids.length });
   } else if(previousAsteroidCount === 0 && asteroids.length > 0) {
+    if (window.asteroidSpawnSound) window.asteroidSpawnSound();
     missionLog.triggerEvent('asteroidSpawn', { asteroidCount: asteroids.length });
   }
   previousAsteroidCount = asteroids.length;
 
-  // Trigger low fuel warning
-  if(ship.fuel < 5 && ship.fuel > 0) {
+  if(ship.fuel < 5 && ship.fuel > 0){
+    if (window.lowFuelSound) window.lowFuelSound();
     missionLog.triggerEvent('lowFuel', { fuel: ship.fuel });
   }
-
-  // removed global game-over; crashes now respawn the player on the current mission
+  
 
   // Ghosting effect: slightly transparent background
   ctx.fillStyle='rgba(0,0,0,0.2)';
   ctx.fillRect(0,0,800,600);
 
-  // Optional subtle screen shake
   let shakeX=0, shakeY=0;
-  if(Math.random()<0.01){
-    shakeX=(Math.random()-0.5)*4;
-    shakeY=(Math.random()-0.5)*4;
-  }
   ctx.save();
   ctx.translate(shakeX,shakeY);
 

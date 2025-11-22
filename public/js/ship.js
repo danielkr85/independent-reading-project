@@ -28,6 +28,8 @@ export function updateShip(dt, keys) {
     ship.vy += Math.sin(ship.angle) * thrust;
     ship.fuel -= thrust * 2;
     ship.thrusting = true;
+    // Play thrust sound
+    if (window.thrustSound) window.thrustSound();
   }
 
   // Wraparound

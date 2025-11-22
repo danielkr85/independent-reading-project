@@ -2,8 +2,17 @@ export const bullets = [];
 
 const BASE_BULLET_SPEED = 1.4;
 const BULLET_LIFE = 200;
+const MAX_BULLETS = 10;
 
 export function shootBullet(ship){
+  // Cap bullets at 10
+  if (bullets.length >= MAX_BULLETS) {
+    if (window.audioContext && window.noBulletsSound) {
+      window.noBulletsSound();
+    }
+    return;
+  }
+
   const angle = ship.angle;
 
   // Total ship speed magnitude
@@ -24,6 +33,11 @@ export function shootBullet(ship){
     life: BULLET_LIFE,
     trail: []
   });
+
+  // Play blaster sound
+  if (window.audioContext && window.shootSound) {
+    window.shootSound();
+  }
 }
 
 export function updateBullets(dt){

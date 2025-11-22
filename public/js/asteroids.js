@@ -31,14 +31,17 @@ export function worldVerts(obj){
   return obj.verts.map(v => ({ x: obj.x + v.x, y: obj.y + v.y }));
 }
 
-export function updateAsteroids(dt){
+export function updateAsteroids(dt, mission = 1){
   asteroids.forEach(a => {
     a.x += a.vx * dt;
     a.y += a.vy * dt + 0.2 * dt;
-    if(a.x > 800) a.x = 0;
-    if(a.x < 0) a.x = 800;
-    if(a.y > 600) a.y = 0;
-    if(a.y < 0) a.y = 600;
+    // Wraparound (disabled for Mission 3)
+    if (mission !== 3) {
+      if(a.x > 800) a.x = 0;
+      if(a.x < 0) a.x = 800;
+      if(a.y > 600) a.y = 0;
+      if(a.y < 0) a.y = 600;
+    }
   });
 }
 
